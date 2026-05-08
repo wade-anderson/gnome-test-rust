@@ -105,11 +105,20 @@ fn show_map_window() {
     let source = libshumate::RasterRenderer::from_url("https://tile.openstreetmap.org/{z}/{x}/{y}.png");
     map.set_map_source(Some(&source));
 
-    let viewport = map.viewport().unwrap();
+    let Some(viewport) = map.viewport() else {
+        println!("Error: Map viewport could not be initialized.");
+        return;
+    };
     
     // Try to get current location from IP (fallback to London)
     let lat = 51.5074;
     let lon = -0.1278;
+
+    // Create an HTTP client with a custom User-Agent
+    let client = reqwest::Client::builder()
+        .user_agent("GnomeTestRust/0.1.0")
+        .build()
+        .unwrap_or_default();
 
     // Use GLib main context to spawn the async fetch
     let viewport_clone = viewport.clone();
@@ -118,7 +127,7 @@ fn show_map_window() {
         let mut success = false;
         
         // Attempt 1: ipapi.co
-        if let Ok(response) = reqwest::get("https://ipapi.co/json/").await {
+        if let Ok(response) = client.get("https://ipapi.co/json/").send().await {
             if let Ok(json) = response.json::<serde_json::Value>().await {
                 if let (Some(l_lat), Some(l_lon)) = (json["latitude"].as_f64(), json["longitude"].as_f64()) {
                     println!("Found location (ipapi.co): {}, {}", l_lat, l_lon);
@@ -128,13 +137,13 @@ fn show_map_window() {
             }
         }
 
-        // Attempt 2: ip-api.com (Fallback)
+        // Attempt 2: freeipapi.com (Secure HTTPS Fallback)
         if !success {
             println!("Attempt 1 failed. Fetching current location (Attempt 2)...");
-            if let Ok(response) = reqwest::get("http://ip-api.com/json/").await {
+            if let Ok(response) = client.get("https://freeipapi.com/api/json").send().await {
                 if let Ok(json) = response.json::<serde_json::Value>().await {
-                    if let (Some(l_lat), Some(l_lon)) = (json["lat"].as_f64(), json["lon"].as_f64()) {
-                        println!("Found location (ip-api.com): {}, {}", l_lat, l_lon);
+                    if let (Some(l_lat), Some(l_lon)) = (json["latitude"].as_f64(), json["longitude"].as_f64()) {
+                        println!("Found location (freeipapi.com): {}, {}", l_lat, l_lon);
                         viewport_clone.set_location(l_lat, l_lon);
                         success = true;
                     }
