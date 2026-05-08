@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.example.GnomeTestRust</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Gnome Test Rust</name>
+  <summary>A simple GNOME map application built with Rust</summary>
+  <description>
+    <p>
+      Gnome Test Rust is a demonstration application featuring a modern UI, 
+      custom "rusty gnome" branding, and an interactive world map with 
+      automatic geolocation.
+    </p>
+  </description>
+  <launchable type="desktop-id">org.example.GnomeTestRust.desktop</launchable>
+  <developer_name>Your Name</developer_name>
+</component>

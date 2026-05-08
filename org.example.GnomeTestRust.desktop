@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Gnome Test Rust
-Exec=/home/waa/Devel/antigravity/gnome-test-rust/target/release/gnome-test-rust
-Icon=/home/waa/Devel/antigravity/gnome-test-rust/icon.png
+Exec=gnome-test-rust
+Icon=org.example.GnomeTestRust
 Type=Application
 Terminal=false
 Categories=Utility;
