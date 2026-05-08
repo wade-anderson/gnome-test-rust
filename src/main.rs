@@ -74,12 +74,20 @@ fn build_ui(app: &Application) {
         std::process::exit(0);
     });
 
+    // Set the application icon
+    let display = gtk4::gdk::Display::default().expect("Could not get default display");
+    let icon_theme = gtk4::IconTheme::for_display(&display);
+    if let Ok(current_dir) = std::env::current_dir() {
+        icon_theme.add_search_path(current_dir);
+    }
+    
     let window = ApplicationWindow::builder()
         .application(app)
         .title("Gnome Test Rust")
         .default_width(400)
         .default_height(300)
         .content(&content)
+        .icon_name("icon") // Refers to icon.png in the search path
         .build();
 
     window.present();
@@ -90,6 +98,7 @@ fn show_map_window() {
         .title("Map View")
         .default_width(800)
         .default_height(600)
+        .icon_name("icon")
         .build();
 
     let content_box = gtk4::Box::builder()

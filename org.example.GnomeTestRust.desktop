@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Gnome Test Rust
+Exec=/home/waa/Devel/antigravity/gnome-test-rust/target/release/gnome-test-rust
+Icon=/home/waa/Devel/antigravity/gnome-test-rust/icon.png
+Type=Application
+Terminal=false
+Categories=Utility;
+StartupWMClass=org.example.GnomeTestRust
