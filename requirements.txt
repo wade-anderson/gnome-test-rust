@@ -1,0 +1,8 @@
+This will be a gnome application.
+Use Rust.
+
+Shall have a "OK" button that will exit the program.
+Shall have a window that says "Hello World" in the center of the window.
+
+Shall have a Map button above the "OK" button.
+Map button shall bring up a window that shows a map centered on the current location.
