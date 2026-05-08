@@ -4,5 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+glib = "0.22.7"
 gtk4 = "0.11.3"
 libadwaita = "0.9.1"
+libshumate = "0.8.0"
+reqwest = { version = "0.13.3", features = ["blocking", "json"] }
+serde_json = "1.0.149"
+tokio = { version = "1.52.3", features = ["rt", "macros", "sync", "rt-multi-thread"] }
