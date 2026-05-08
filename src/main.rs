@@ -122,6 +122,7 @@ fn show_map_window() {
 
     // Use GLib main context to spawn the async fetch
     let viewport_clone = viewport.clone();
+    let map_clone = map.clone();
     glib::MainContext::default().spawn_local(async move {
         println!("Fetching current location (Attempt 1)...");
         let mut success = false;
@@ -132,6 +133,7 @@ fn show_map_window() {
                 if let (Some(l_lat), Some(l_lon)) = (json["latitude"].as_f64(), json["longitude"].as_f64()) {
                     println!("Found location (ipapi.co): {}, {}", l_lat, l_lon);
                     viewport_clone.set_location(l_lat, l_lon);
+                    map_clone.queue_draw();
                     success = true;
                 }
             }
@@ -145,6 +147,7 @@ fn show_map_window() {
                     if let (Some(l_lat), Some(l_lon)) = (json["latitude"].as_f64(), json["longitude"].as_f64()) {
                         println!("Found location (freeipapi.com): {}, {}", l_lat, l_lon);
                         viewport_clone.set_location(l_lat, l_lon);
+                        map_clone.queue_draw();
                         success = true;
                     }
                 }
@@ -158,6 +161,7 @@ fn show_map_window() {
     
     viewport.set_location(lat, lon);
     viewport.set_zoom_level(12.0);
+    map.queue_draw();
 
     // Create a container for the map and a close button
     let overlay = gtk4::Overlay::builder()
