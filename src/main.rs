@@ -28,6 +28,10 @@ impl GeoService {
     }
 
     async fn fetch_location(&self) -> Option<GeoLocation> {
+        if std::env::var("GNOME_TEST_FAIL_GEO").is_ok() {
+            println!("Debug: Forcing geolocation failure.");
+            return None;
+        }
         for provider in &self.providers {
             if let Ok(response) = self.client.get(provider).send().await {
                 if let Ok(loc) = response.json::<GeoLocation>().await {
