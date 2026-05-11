@@ -5,6 +5,39 @@ use libshumate::prelude::*;
 
 use adw::{Application, ApplicationWindow};
 use gtk4::{Button, Label, Orientation};
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+struct GeoLocation {
+    latitude: f64,
+    longitude: f64,
+}
+
+struct GeoService {
+    client: reqwest::Client,
+    providers: Vec<String>,
+}
+
+impl GeoService {
+    fn new(providers: Vec<String>) -> Self {
+        let client = reqwest::Client::builder()
+            .user_agent("GnomeTestRust/0.1.0")
+            .build()
+            .unwrap_or_default();
+        Self { client, providers }
+    }
+
+    async fn fetch_location(&self) -> Option<GeoLocation> {
+        for provider in &self.providers {
+            if let Ok(response) = self.client.get(provider).send().await {
+                if let Ok(loc) = response.json::<GeoLocation>().await {
+                    return Some(loc);
+                }
+            }
+        }
+        None
+    }
+}
 
 #[tokio::main]
 async fn main() {
@@ -123,47 +156,21 @@ fn show_map_window() {
     let lat = 51.5074;
     let lon = -0.1278;
 
-    // Create an HTTP client with a custom User-Agent
-    let client = reqwest::Client::builder()
-        .user_agent("GnomeTestRust/0.1.0")
-        .build()
-        .unwrap_or_default();
+    let providers = vec![
+        "https://ipapi.co/json/".to_string(),
+        "https://freeipapi.com/api/json".to_string(),
+    ];
+    let geo_service = GeoService::new(providers);
 
     // Use GLib main context to spawn the async fetch
     let viewport_clone = viewport.clone();
     let map_clone = map.clone();
     glib::MainContext::default().spawn_local(async move {
-        println!("Fetching current location (Attempt 1)...");
-        let mut success = false;
-        
-        // Attempt 1: ipapi.co
-        if let Ok(response) = client.get("https://ipapi.co/json/").send().await {
-            if let Ok(json) = response.json::<serde_json::Value>().await {
-                if let (Some(l_lat), Some(l_lon)) = (json["latitude"].as_f64(), json["longitude"].as_f64()) {
-                    println!("Found location (ipapi.co): {}, {}", l_lat, l_lon);
-                    viewport_clone.set_location(l_lat, l_lon);
-                    map_clone.queue_draw();
-                    success = true;
-                }
-            }
-        }
-
-        // Attempt 2: freeipapi.com (Secure HTTPS Fallback)
-        if !success {
-            println!("Attempt 1 failed. Fetching current location (Attempt 2)...");
-            if let Ok(response) = client.get("https://freeipapi.com/api/json").send().await {
-                if let Ok(json) = response.json::<serde_json::Value>().await {
-                    if let (Some(l_lat), Some(l_lon)) = (json["latitude"].as_f64(), json["longitude"].as_f64()) {
-                        println!("Found location (freeipapi.com): {}, {}", l_lat, l_lon);
-                        viewport_clone.set_location(l_lat, l_lon);
-                        map_clone.queue_draw();
-                        success = true;
-                    }
-                }
-            }
-        }
-
-        if !success {
+        if let Some(location) = geo_service.fetch_location().await {
+            println!("Found location: {}, {}", location.latitude, location.longitude);
+            viewport_clone.set_location(location.latitude, location.longitude);
+            map_clone.queue_draw();
+        } else {
             println!("All geolocation attempts failed. Using default location (London).");
         }
     });
@@ -239,5 +246,76 @@ mod tests {
             next_child = child.next_sibling();
         }
         assert_eq!(child_count, 4);
+    }
+
+    #[tokio::test]
+    async fn test_geo_service_success() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(GET)
+                .path("/json");
+            then.status(200)
+                .header("content-type", "application/json")
+                .body(r#"{"latitude": 40.7128, "longitude": -74.0060}"#);
+        });
+
+        let service = GeoService::new(vec![server.url("/json")]);
+        let loc = service.fetch_location().await.expect("Should find location");
+
+        assert_eq!(loc.latitude, 40.7128);
+        assert_eq!(loc.longitude, -74.0060);
+        mock.assert();
+    }
+
+    #[tokio::test]
+    async fn test_geo_service_fallback() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+        
+        // First provider fails
+        let mock_fail = server.mock(|when, then| {
+            when.method(GET).path("/fail");
+            then.status(500);
+        });
+
+        // Second provider succeeds
+        let mock_success = server.mock(|when, then| {
+            when.method(GET).path("/success");
+            then.status(200)
+                .body(r#"{"latitude": 34.0522, "longitude": -118.2437}"#);
+        });
+
+        let service = GeoService::new(vec![
+            server.url("/fail"),
+            server.url("/success"),
+        ]);
+        
+        let loc = service.fetch_location().await.expect("Should fallback to second provider");
+
+        assert_eq!(loc.latitude, 34.0522);
+        assert_eq!(loc.longitude, -118.2437);
+        
+        mock_fail.assert();
+        mock_success.assert();
+    }
+
+    #[tokio::test]
+    async fn test_geo_service_total_failure() {
+        use httpmock::prelude::*;
+
+        let server = MockServer::start();
+        let mock = server.mock(|when, then| {
+            when.method(GET).path("/fail");
+            then.status(404);
+        });
+
+        let service = GeoService::new(vec![server.url("/fail")]);
+        let loc = service.fetch_location().await;
+
+        assert!(loc.is_none());
+        mock.assert();
     }
 }
