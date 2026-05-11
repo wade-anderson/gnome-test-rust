@@ -1,0 +1,58 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libgtk-4-dev \
+          libadwaita-1-dev \
+          libshumate-1.0-dev \
+          xvfb \
+          at-spi2-core \
+          dbus-x11 \
+          python3-gi \
+          python3-atspi
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install Tarpaulin
+      run: |
+        if ! command -v cargo-tarpaulin &> /dev/null; then
+          cargo install cargo-tarpaulin
+        fi
+
+    - name: Run Unified Test Suite
+      run: |
+        # Start DBus and AT-SPI in the background
+        # This is required for the E2E tests to interact with the accessibility tree
+        export $(dbus-launch)
+        /usr/libexec/at-spi-bus-launcher --launch-immediately &
+        sleep 2
+        
+        # Run the unified test runner under xvfb (virtual display)
+        # --auto-servernum ensures we don't clash with existing displays
+        xvfb-run --auto-servernum bash scripts/run_tests.sh
+      env:
+        DISPLAY: :99
