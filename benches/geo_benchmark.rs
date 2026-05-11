@@ -1,13 +1,12 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use httpmock::prelude::*;
-use std::time::Duration;
 use tokio::runtime::Runtime;
 
-#[allow(dead_code)]
+#[allow(dead_code, unused_imports)]
 #[path = "../src/main.rs"]
 mod app;
 
-use app::{GeoLocation, GeoService};
+use app::GeoService;
 
 fn fetch_location_benchmark(c: &mut Criterion) {
     let server = MockServer::start();
