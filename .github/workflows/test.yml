@@ -29,7 +29,9 @@ jobs:
           at-spi2-core \
           dbus-x11 \
           python3-gi \
-          python3-atspi
+          python3-atspi \
+          scrot \
+          python3-pil
 
     - name: Set up Rust
       uses: dtolnay/rust-toolchain@stable

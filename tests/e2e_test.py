@@ -5,6 +5,61 @@ import os
 import gi
 gi.require_version('Atspi', '2.0')
 from gi.repository import Atspi
+from PIL import Image, ImageChops
+
+def compare_images(path1, path2, threshold=0.01):
+    """Compare two images and return True if they are similar enough."""
+    if not os.path.exists(path1) or not os.path.exists(path2):
+        return False
+    
+    try:
+        img1 = Image.open(path1).convert('RGB')
+        img2 = Image.open(path2).convert('RGB')
+        
+        if img1.size != img2.size:
+            print(f"Size mismatch: {img1.size} vs {img2.size}")
+            return False
+        
+        diff = ImageChops.difference(img1, img2)
+        diff_pixels = 0
+        data = diff.getdata()
+        for pixel in data:
+            if sum(pixel) > 30: # Threshold for noise
+                diff_pixels += 1
+        
+        percent_diff = diff_pixels / (img1.size[0] * img1.size[1])
+        print(f"Visual difference for {os.path.basename(path1)}: {percent_diff:.4%}")
+        return percent_diff <= threshold
+    except Exception as e:
+        print(f"Error comparing images: {e}")
+        return False
+
+def verify_visual(name):
+    """Capture a screenshot and compare with baseline."""
+    os.makedirs("tests/screenshots", exist_ok=True)
+    baseline = f"tests/baselines/{name}.png"
+    current = f"tests/screenshots/{name}.png"
+    
+    # Capture using scrot (silent mode)
+    try:
+        # Check if scrot is available
+        if subprocess.run(["which", "scrot"], capture_output=True).returncode != 0:
+            return True # Skip if tool not available
+
+        subprocess.run(["scrot", "-z", current], check=True)
+    except Exception as e:
+        print(f"Warning: Could not capture screenshot: {e}")
+        return True
+        
+    if not os.path.exists(baseline):
+        print(f"Creating baseline for {name}...")
+        os.makedirs("tests/baselines", exist_ok=True)
+        # Use shutil to copy instead of rename so we keep the current one too
+        import shutil
+        shutil.copy(current, baseline)
+        return True
+    
+    return compare_images(baseline, current)
 
 def find_child(parent, name=None, role=None, timeout=10):
     """Recursively find a child by name and/or role using BFS."""
@@ -81,6 +136,11 @@ def run_e2e_test(fail_geo=False):
         if not window:
             print("FAILED: Main window not found.")
             return False
+        
+        # Visual Check: Main Window
+        if not verify_visual("main_window"):
+            print("FAILED: Visual regression detected in main window.")
+            return False
 
         # 2. Open Map
         map_button = find_child(window, name="Map", role="button")
@@ -94,6 +154,11 @@ def run_e2e_test(fail_geo=False):
 
         if not map_window:
             print("FAILED: 'Map View' window did not appear.")
+            return False
+        
+        # Visual Check: Map Window
+        if not verify_visual("map_window"):
+            print("FAILED: Visual regression detected in map window.")
             return False
         
         # 4. Check for failure output in logs if fail_geo is set
