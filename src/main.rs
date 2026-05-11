@@ -8,18 +8,18 @@ use gtk4::{Button, Label, Orientation};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
-struct GeoLocation {
-    latitude: f64,
-    longitude: f64,
+pub struct GeoLocation {
+    pub latitude: f64,
+    pub longitude: f64,
 }
 
-struct GeoService {
-    client: reqwest::Client,
-    providers: Vec<String>,
+pub struct GeoService {
+    pub client: reqwest::Client,
+    pub providers: Vec<String>,
 }
 
 impl GeoService {
-    fn new(providers: Vec<String>) -> Self {
+    pub fn new(providers: Vec<String>) -> Self {
         let client = reqwest::Client::builder()
             .user_agent("GnomeTestRust/0.1.0")
             .build()
@@ -27,7 +27,7 @@ impl GeoService {
         Self { client, providers }
     }
 
-    async fn fetch_location(&self) -> Option<GeoLocation> {
+    pub async fn fetch_location(&self) -> Option<GeoLocation> {
         if std::env::var("GNOME_TEST_FAIL_GEO").is_ok() {
             println!("Debug: Forcing geolocation failure.");
             return None;

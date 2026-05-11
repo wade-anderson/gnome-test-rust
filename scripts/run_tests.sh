@@ -10,7 +10,7 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}=== Starting Unified Test Suite ===${NC}"
 
 # 1. Code Formatting
-echo -e "\n${GREEN}[1/5] Checking Code Formatting...${NC}"
+echo -e "\n${GREEN}[1/6] Checking Code Formatting...${NC}"
 cargo fmt -- --check
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Code Formatting PASSED${NC}"
@@ -20,7 +20,7 @@ else
 fi
 
 # 2. Linting
-echo -e "\n${GREEN}[2/5] Running Linter (Clippy)...${NC}"
+echo -e "\n${GREEN}[2/6] Running Linter (Clippy)...${NC}"
 cargo clippy -- -D warnings
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Linting PASSED${NC}"
@@ -30,7 +30,7 @@ else
 fi
 
 # 3. Unit Tests
-echo -e "\n${GREEN}[3/5] Running Unit Tests...${NC}"
+echo -e "\n${GREEN}[3/6] Running Unit Tests...${NC}"
 cargo test
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Unit Tests PASSED${NC}"
@@ -39,8 +39,18 @@ else
     exit 1
 fi
 
-# 4. Coverage
-echo -e "\n${GREEN}[4/5] Running Coverage Analysis...${NC}"
+# 4. Benchmarks
+echo -e "\n${GREEN}[4/6] Running Performance Benchmarks...${NC}"
+cargo bench
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}Benchmarks PASSED${NC}"
+else
+    echo -e "${RED}Benchmarks FAILED${NC}"
+    exit 1
+fi
+
+# 5. Coverage
+echo -e "\n${GREEN}[5/6] Running Coverage Analysis...${NC}"
 cargo tarpaulin
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Coverage Analysis COMPLETED${NC}"
@@ -49,8 +59,8 @@ else
     exit 1
 fi
 
-# 5. E2E Tests
-echo -e "\n${GREEN}[5/5] Running End-to-End Tests...${NC}"
+# 6. E2E Tests
+echo -e "\n${GREEN}[6/6] Running End-to-End Tests...${NC}"
 python3 tests/e2e_test.py
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}E2E Tests PASSED${NC}"
