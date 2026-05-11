@@ -1,12 +1,18 @@
-This will be a gnome application.
-Use Rust.
+1. This will be a gnome application. [DONE]
+2. Use Rust. [DONE]
 
-Shall have an application icon that looks like a "rusty gnome".
-Shall have a window that says "Hello World" in the center of the window.
-Shall have a "OK" button that will exit the program.
+3. Shall have an application icon that looks like a "rusty gnome". [DONE]
+4. Shall have a window that says "Hello World" in the center of the window. [DONE]
+5. Shall have a "OK" button that will exit the program. [DONE]
 
-Shall have a Map button above the "OK" button.
-Map button shall bring up a window that shows a map centered on the current location.
-Map window shall use asynchronous geolocation to find the user's coordinates.
-Map window shall have a header bar and a way to close the window (e.g., a "Close Map" button).
-The application shall be unit tested to verify UI component initialization.
+6. Shall have a Map button above the "OK" button. [DONE]
+7. Map button shall bring up a window that shows a map centered on the current location. [DONE]
+8. Map window shall use asynchronous geolocation to find the user's coordinates. [DONE]
+9. Map window shall have a header bar and a way to close the window (e.g., a "Close Map" button). [DONE]
+
+10. The application shall be unit tested to verify UI component initialization. [DONE]
+11. Implement a high-confidence testing pipeline:
+    - Automated unit testing with dependency mocking (httpmock). [DONE]
+    - Automated End-to-End (E2E) testing framework using AT-SPI for UI verification. [DONE]
+    - Code coverage analysis using cargo-tarpaulin. [DONE]
+12. Integrate all tests into a unified CI/CD workflow with GitHub Actions. [DONE]

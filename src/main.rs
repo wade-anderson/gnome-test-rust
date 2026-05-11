@@ -1,6 +1,6 @@
+use adw::prelude::*;
 use gtk4::prelude::*;
 use libadwaita as adw;
-use adw::prelude::*;
 use libshumate::prelude::*;
 
 use adw::{Application, ApplicationWindow};
@@ -33,10 +33,10 @@ impl GeoService {
             return None;
         }
         for provider in &self.providers {
-            if let Ok(response) = self.client.get(provider).send().await {
-                if let Ok(loc) = response.json::<GeoLocation>().await {
-                    return Some(loc);
-                }
+            if let Ok(response) = self.client.get(provider).send().await
+                && let Ok(loc) = response.json::<GeoLocation>().await
+            {
+                return Some(loc);
             }
         }
         None
@@ -117,7 +117,7 @@ fn build_ui(app: &Application) {
     if let Ok(current_dir) = std::env::current_dir() {
         icon_theme.add_search_path(current_dir);
     }
-    
+
     let window = ApplicationWindow::builder()
         .application(app)
         .title("Gnome Test Rust")
@@ -146,16 +146,17 @@ fn show_map_window() {
     content_box.append(&header_bar);
 
     let map = libshumate::SimpleMap::new();
-    
+
     // Add a map source (OpenStreetMap)
-    let source = libshumate::RasterRenderer::from_url("https://tile.openstreetmap.org/{z}/{x}/{y}.png");
+    let source =
+        libshumate::RasterRenderer::from_url("https://tile.openstreetmap.org/{z}/{x}/{y}.png");
     map.set_map_source(Some(&source));
 
     let Some(viewport) = map.viewport() else {
         println!("Error: Map viewport could not be initialized.");
         return;
     };
-    
+
     // Try to get current location from IP (fallback to London)
     let lat = 51.5074;
     let lon = -0.1278;
@@ -171,24 +172,24 @@ fn show_map_window() {
     let map_clone = map.clone();
     glib::MainContext::default().spawn_local(async move {
         if let Some(location) = geo_service.fetch_location().await {
-            println!("Found location: {}, {}", location.latitude, location.longitude);
+            println!(
+                "Found location: {}, {}",
+                location.latitude, location.longitude
+            );
             viewport_clone.set_location(location.latitude, location.longitude);
             map_clone.queue_draw();
         } else {
             println!("All geolocation attempts failed. Using default location (London).");
         }
     });
-    
+
     viewport.set_location(lat, lon);
     viewport.set_zoom_level(12.0);
     map.queue_draw();
 
     // Create a container for the map and a close button
-    let overlay = gtk4::Overlay::builder()
-        .vexpand(true)
-        .hexpand(true)
-        .build();
-    
+    let overlay = gtk4::Overlay::builder().vexpand(true).hexpand(true).build();
+
     map.set_vexpand(true);
     map.set_hexpand(true);
     overlay.set_child(Some(&map));
@@ -234,8 +235,16 @@ mod tests {
         assert_eq!(content.orientation(), Orientation::Vertical);
 
         // CSS Class checks
-        let map_classes: Vec<String> = map_button.css_classes().iter().map(|c| c.to_string()).collect();
-        let ok_classes: Vec<String> = ok_button.css_classes().iter().map(|c| c.to_string()).collect();
+        let map_classes: Vec<String> = map_button
+            .css_classes()
+            .iter()
+            .map(|c| c.to_string())
+            .collect();
+        let ok_classes: Vec<String> = ok_button
+            .css_classes()
+            .iter()
+            .map(|c| c.to_string())
+            .collect();
 
         assert!(map_classes.contains(&"pill".to_string()));
         assert!(ok_classes.contains(&"pill".to_string()));
@@ -258,15 +267,17 @@ mod tests {
 
         let server = MockServer::start();
         let mock = server.mock(|when, then| {
-            when.method(GET)
-                .path("/json");
+            when.method(GET).path("/json");
             then.status(200)
                 .header("content-type", "application/json")
                 .body(r#"{"latitude": 40.7128, "longitude": -74.0060}"#);
         });
 
         let service = GeoService::new(vec![server.url("/json")]);
-        let loc = service.fetch_location().await.expect("Should find location");
+        let loc = service
+            .fetch_location()
+            .await
+            .expect("Should find location");
 
         assert_eq!(loc.latitude, 40.7128);
         assert_eq!(loc.longitude, -74.0060);
@@ -278,7 +289,7 @@ mod tests {
         use httpmock::prelude::*;
 
         let server = MockServer::start();
-        
+
         // First provider fails
         let mock_fail = server.mock(|when, then| {
             when.method(GET).path("/fail");
@@ -292,16 +303,16 @@ mod tests {
                 .body(r#"{"latitude": 34.0522, "longitude": -118.2437}"#);
         });
 
-        let service = GeoService::new(vec![
-            server.url("/fail"),
-            server.url("/success"),
-        ]);
-        
-        let loc = service.fetch_location().await.expect("Should fallback to second provider");
+        let service = GeoService::new(vec![server.url("/fail"), server.url("/success")]);
+
+        let loc = service
+            .fetch_location()
+            .await
+            .expect("Should fallback to second provider");
 
         assert_eq!(loc.latitude, 34.0522);
         assert_eq!(loc.longitude, -118.2437);
-        
+
         mock_fail.assert();
         mock_success.assert();
     }
