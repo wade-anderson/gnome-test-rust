@@ -49,14 +49,6 @@ jobs:
 
     - name: Run Unified Test Suite
       run: |
-        # Start DBus and AT-SPI in the background
-        # This is required for the E2E tests to interact with the accessibility tree
-        export $(dbus-launch)
-        /usr/libexec/at-spi-bus-launcher --launch-immediately &
-        sleep 2
-        
-        # Run the unified test runner under xvfb (virtual display)
-        # --auto-servernum ensures we don't clash with existing displays
-        xvfb-run --auto-servernum bash scripts/run_tests.sh
-      env:
-        DISPLAY: :99
+        # Run the unified test runner under xvfb (virtual display) and dbus-run-session
+        # This ensures all accessibility components share the same display and bus.
+        xvfb-run --auto-servernum dbus-run-session bash scripts/run_tests.sh
