@@ -1,3 +1,4 @@
+pub mod map_view;
 use serde::Deserialize;
 use thiserror::Error;
 

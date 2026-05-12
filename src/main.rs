@@ -1,10 +1,9 @@
 use adw::prelude::*;
 use gtk4::prelude::*;
 use libadwaita as adw;
-use libshumate::prelude::*;
 
 use adw::{Application, ApplicationWindow};
-use gnome_test_rust::GeoService;
+use gnome_test_rust::map_view::MapView;
 use gtk4::{Button, Label, Orientation};
 
 #[tokio::main]
@@ -113,61 +112,11 @@ fn show_map_window(toast_overlay: &adw::ToastOverlay) {
     let header_bar = adw::HeaderBar::new();
     content_box.append(&header_bar);
 
-    let map = libshumate::SimpleMap::new();
+    let map_view = MapView::new();
+    map_view.center_on_current_location(toast_overlay);
 
-    // Add a map source (OpenStreetMap)
-    let source =
-        libshumate::RasterRenderer::from_url("https://tile.openstreetmap.org/{z}/{x}/{y}.png");
-    map.set_map_source(Some(&source));
-
-    let Some(viewport) = map.viewport() else {
-        println!("Error: Map viewport could not be initialized.");
-        return;
-    };
-
-    // Try to get current location from IP (fallback to London)
-    let lat = 51.5074;
-    let lon = -0.1278;
-
-    let providers = vec![
-        "https://ipapi.co/json/".to_string(),
-        "https://freeipapi.com/api/json".to_string(),
-    ];
-    let geo_service = GeoService::new(providers);
-
-    // Use GLib main context to spawn the async fetch
-    let viewport_clone = viewport.clone();
-    let map_clone = map.clone();
-    let toast_overlay_clone = toast_overlay.clone();
-    glib::MainContext::default().spawn_local(async move {
-        match geo_service.fetch_location().await {
-            Ok(location) => {
-                println!(
-                    "Found location: {}, {}",
-                    location.latitude, location.longitude
-                );
-                viewport_clone.set_location(location.latitude, location.longitude);
-                map_clone.queue_draw();
-            }
-            Err(e) => {
-                let error_msg = format!("Geolocation failed: {}", e);
-                println!("{}", error_msg);
-                let toast = adw::Toast::new(&error_msg);
-                toast_overlay_clone.add_toast(toast);
-            }
-        }
-    });
-
-    viewport.set_location(lat, lon);
-    viewport.set_zoom_level(12.0);
-    map.queue_draw();
-
-    // Create a container for the map and a close button
     let overlay = gtk4::Overlay::builder().vexpand(true).hexpand(true).build();
-
-    map.set_vexpand(true);
-    map.set_hexpand(true);
-    overlay.set_child(Some(&map));
+    overlay.set_child(Some(&map_view));
 
     let close_button = Button::builder()
         .label("Close Map")
@@ -184,8 +133,8 @@ fn show_map_window(toast_overlay: &adw::ToastOverlay) {
     });
 
     overlay.add_overlay(&close_button);
-
     content_box.append(&overlay);
+
     window.set_content(Some(&content_box));
     window.present();
 }
