@@ -144,13 +144,17 @@ def run_e2e_test(fail_geo=False):
 
         # 2. Open Map
         map_button = find_child(window, name="Map", role="button")
+        if not map_button:
+            print("FAILED: 'Map' button not found.")
+            return False
         action = map_button.get_action_iface()
         action.do_action(0)
         
         # 3. Verify Map View window
-        map_window = find_app_by_binary("Map View")
+        map_window = find_child(app, name="Map View", role="frame")
         if not map_window:
-             map_window = find_child(app, name="Map View", role="frame")
+             # Try fallback search
+             map_window = find_app_by_binary("Map View")
 
         if not map_window:
             print("FAILED: 'Map View' window did not appear.")
@@ -169,6 +173,9 @@ def run_e2e_test(fail_geo=False):
 
         # 5. Close Map
         close_button = find_child(map_window, name="Close Map", role="button")
+        if not close_button:
+            print("FAILED: 'Close Map' button not found.")
+            return False
         close_button.get_action_iface().do_action(0)
         time.sleep(1)
 

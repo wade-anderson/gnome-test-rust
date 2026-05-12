@@ -69,8 +69,9 @@ fn build_ui(app: &Application) {
 
     // When the Map button is clicked, show the map window
     let toast_overlay_clone = toast_overlay.clone();
+    let app_clone = app.clone();
     map_button.connect_clicked(move |_| {
-        show_map_window(&toast_overlay_clone);
+        show_map_window(&app_clone, &toast_overlay_clone);
     });
 
     // When the OK button is clicked, quit the application
@@ -97,8 +98,9 @@ fn build_ui(app: &Application) {
     window.present();
 }
 
-fn show_map_window(toast_overlay: &adw::ToastOverlay) {
+fn show_map_window(app: &Application, toast_overlay: &adw::ToastOverlay) {
     let window = adw::Window::builder()
+        .application(app)
         .title("Map View")
         .default_width(800)
         .default_height(600)
