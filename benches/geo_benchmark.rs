@@ -2,11 +2,7 @@ use criterion::{Criterion, criterion_group, criterion_main};
 use httpmock::prelude::*;
 use tokio::runtime::Runtime;
 
-#[allow(dead_code, unused_imports)]
-#[path = "../src/main.rs"]
-mod app;
-
-use app::GeoService;
+use gnome_test_rust::GeoService;
 
 fn fetch_location_benchmark(c: &mut Criterion) {
     let server = MockServer::start();
