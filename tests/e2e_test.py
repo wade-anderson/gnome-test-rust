@@ -88,6 +88,15 @@ def find_child(parent, name=None, role=None, timeout=10):
         time.sleep(0.5)
     return None
 
+def dump_tree(node, depth=0, max_depth=10):
+    if not node or depth > max_depth: return
+    try:
+        print("  " * depth + f"- {node.get_name()} [{node.get_role_name()}]")
+        for i in range(node.get_child_count()):
+            dump_tree(node.get_child_at_index(i), depth + 1, max_depth)
+    except Exception as e:
+        pass
+
 def find_app_by_binary(binary_name, timeout=15):
     """Find the application in the Atspi tree by its binary name."""
     start = time.time()
@@ -143,9 +152,10 @@ def run_e2e_test(fail_geo=False):
             return False
 
         # 2. Open Map
-        map_button = find_child(window, name="Map", role="button")
+        map_button = find_child(window, name="Map")
         if not map_button:
             print("FAILED: 'Map' button not found.")
+            dump_tree(window)
             return False
         action = map_button.get_action_iface()
         action.do_action(0)
@@ -172,9 +182,10 @@ def run_e2e_test(fail_geo=False):
             print("INFO: Verified app handles geolocation failure without crashing.")
 
         # 5. Close Map
-        close_button = find_child(map_window, name="Close Map", role="button")
+        close_button = find_child(map_window, name="Close Map")
         if not close_button:
             print("FAILED: 'Close Map' button not found.")
+            dump_tree(map_window)
             return False
         close_button.get_action_iface().do_action(0)
         time.sleep(1)
