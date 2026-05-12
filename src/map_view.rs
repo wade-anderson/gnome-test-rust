@@ -128,12 +128,6 @@ mod imp {
             self.map.set_vexpand(true);
             self.map.set_hexpand(true);
 
-            // Default location (London)
-            if let Some(viewport) = self.map.viewport() {
-                viewport.set_location(51.5074, -0.1278);
-                viewport.set_zoom_level(12.0);
-            }
-
             // Set up UI with overlay for spinner
             let overlay = gtk4::Overlay::new();
             overlay.set_child(Some(&self.map));
