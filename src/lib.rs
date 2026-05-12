@@ -1,4 +1,15 @@
 use serde::Deserialize;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum GeoError {
+    #[error("network error: {0}")]
+    Network(#[from] reqwest::Error),
+    #[error("no location data found from any provider")]
+    NoLocationFound,
+    #[error("forced failure for testing")]
+    TestingForcedFailure,
+}
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct GeoLocation {
@@ -20,19 +31,18 @@ impl GeoService {
         Self { client, providers }
     }
 
-    pub async fn fetch_location(&self) -> Option<GeoLocation> {
+    pub async fn fetch_location(&self) -> Result<GeoLocation, GeoError> {
         if std::env::var("GNOME_TEST_FAIL_GEO").is_ok() {
-            println!("Debug: Forcing geolocation failure.");
-            return None;
+            return Err(GeoError::TestingForcedFailure);
         }
         for provider in &self.providers {
             if let Ok(response) = self.client.get(provider).send().await
                 && let Ok(loc) = response.json::<GeoLocation>().await
             {
-                return Some(loc);
+                return Ok(loc);
             }
         }
-        None
+        Err(GeoError::NoLocationFound)
     }
 }
 
@@ -107,9 +117,9 @@ mod tests {
         });
 
         let service = GeoService::new(vec![server.url("/fail")]);
-        let loc = service.fetch_location().await;
+        let result = service.fetch_location().await;
 
-        assert!(loc.is_none());
+        assert!(matches!(result, Err(GeoError::NoLocationFound)));
         mock.assert();
     }
 }

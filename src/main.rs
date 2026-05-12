@@ -65,9 +65,13 @@ fn create_widgets() -> (gtk4::Image, Label, Button, Button, gtk4::Box) {
 fn build_ui(app: &Application) {
     let (_, _, map_button, ok_button, content) = create_widgets();
 
+    let toast_overlay = adw::ToastOverlay::new();
+    toast_overlay.set_child(Some(&content));
+
     // When the Map button is clicked, show the map window
-    map_button.connect_clicked(|_| {
-        show_map_window();
+    let toast_overlay_clone = toast_overlay.clone();
+    map_button.connect_clicked(move |_| {
+        show_map_window(&toast_overlay_clone);
     });
 
     // When the OK button is clicked, quit the application
@@ -87,14 +91,14 @@ fn build_ui(app: &Application) {
         .title("Gnome Test Rust")
         .default_width(400)
         .default_height(300)
-        .content(&content)
+        .content(&toast_overlay)
         .icon_name("icon") // Refers to icon.png in the search path
         .build();
 
     window.present();
 }
 
-fn show_map_window() {
+fn show_map_window(toast_overlay: &adw::ToastOverlay) {
     let window = adw::Window::builder()
         .title("Map View")
         .default_width(800)
@@ -134,16 +138,23 @@ fn show_map_window() {
     // Use GLib main context to spawn the async fetch
     let viewport_clone = viewport.clone();
     let map_clone = map.clone();
+    let toast_overlay_clone = toast_overlay.clone();
     glib::MainContext::default().spawn_local(async move {
-        if let Some(location) = geo_service.fetch_location().await {
-            println!(
-                "Found location: {}, {}",
-                location.latitude, location.longitude
-            );
-            viewport_clone.set_location(location.latitude, location.longitude);
-            map_clone.queue_draw();
-        } else {
-            println!("All geolocation attempts failed. Using default location (London).");
+        match geo_service.fetch_location().await {
+            Ok(location) => {
+                println!(
+                    "Found location: {}, {}",
+                    location.latitude, location.longitude
+                );
+                viewport_clone.set_location(location.latitude, location.longitude);
+                map_clone.queue_draw();
+            }
+            Err(e) => {
+                let error_msg = format!("Geolocation failed: {}", e);
+                println!("{}", error_msg);
+                let toast = adw::Toast::new(&error_msg);
+                toast_overlay_clone.add_toast(toast);
+            }
         }
     });
 
