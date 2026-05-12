@@ -113,6 +113,19 @@ fn show_map_window(toast_overlay: &adw::ToastOverlay) {
     content_box.append(&header_bar);
 
     let map_view = MapView::new();
+
+    // Demonstrate connecting to the new signal
+    map_view.connect_closure(
+        "location-changed",
+        false,
+        glib::closure_local!(move |_view: MapView, lat: f64, lon: f64| {
+            println!(
+                "Main App received signal: Location changed to {}, {}",
+                lat, lon
+            );
+        }),
+    );
+
     map_view.center_on_current_location(toast_overlay);
 
     let overlay = gtk4::Overlay::builder().vexpand(true).hexpand(true).build();
