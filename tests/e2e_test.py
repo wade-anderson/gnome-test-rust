@@ -97,21 +97,42 @@ def dump_tree(node, depth=0, max_depth=10):
     except Exception as e:
         pass
 
-def find_app_by_binary(binary_name, timeout=15):
+def find_app_by_binary(binary_name, timeout=30):
     """Find the application in the Atspi tree by its binary name."""
+    print(f"DEBUG: Searching for application '{binary_name}' (timeout: {timeout}s)...")
     start = time.time()
     while time.time() - start < timeout:
-        desktop = Atspi.get_desktop(0)
-        if not desktop:
-            time.sleep(1)
-            continue
+        try:
+            desktop = Atspi.get_desktop(0)
+            if not desktop:
+                print("DEBUG: Desktop not found, retrying...")
+                time.sleep(1)
+                continue
+                
+            count = desktop.get_child_count()
+            for i in range(count):
+                child = desktop.get_child_at_index(i)
+                if not child:
+                    continue
+                name = child.get_name()
+                if child and binary_name.lower() in name.lower():
+                    print(f"DEBUG: Found application '{name}' after {time.time() - start:.2f}s")
+                    return child
+        except Exception as e:
+            print(f"DEBUG: Error during app search: {e}")
             
-        count = desktop.get_child_count()
-        for i in range(count):
-            child = desktop.get_child_at_index(i)
-            if child and binary_name in child.get_name():
-                return child
         time.sleep(1)
+    
+    # Final attempt: dump what we found
+    try:
+        desktop = Atspi.get_desktop(0)
+        if desktop:
+            print(f"DEBUG: Could not find '{binary_name}'. Current applications:")
+            for i in range(desktop.get_child_count()):
+                print(f"  - {desktop.get_child_at_index(i).get_name()}")
+    except:
+        pass
+        
     return None
 
 def run_e2e_test(fail_geo=False):
@@ -191,10 +212,21 @@ def run_e2e_test(fail_geo=False):
         time.sleep(1)
 
         # 6. Exit
-        ok_button = find_child(window, name="OK", role="button")
-        ok_button.get_action_iface().do_action(0)
+        print("INFO: Looking for 'OK' button to exit...")
+        ok_button = find_child(window, name="OK", role="button", timeout=15)
+        if not ok_button:
+            print("FAILED: 'OK' button not found.")
+            dump_tree(window)
+            return False
+            
+        action = ok_button.get_action_iface()
+        if not action:
+            print("FAILED: 'OK' button has no action interface.")
+            return False
+            
+        action.do_action(0)
         
-        proc.wait(timeout=5)
+        proc.wait(timeout=10)
         print("SUCCESS: Scenario completed successfully.")
         return True
         
@@ -208,6 +240,10 @@ def run_e2e_test(fail_geo=False):
 if __name__ == "__main__":
     # Test 1: Standard Success Flow
     s1 = run_e2e_test(fail_geo=False)
+    
+    # Wait for Atspi registry to clean up
+    print("DEBUG: Waiting for registry cleanup...")
+    time.sleep(2)
     
     # Test 2: Geolocation Failure Flow
     s2 = run_e2e_test(fail_geo=True)

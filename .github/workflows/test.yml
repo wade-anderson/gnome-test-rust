@@ -8,47 +8,106 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Ensure GTK accessibility is enabled for E2E tests
+  GTK_A11Y: atspi
+  NO_AT_BRIDGE: 0
 
 jobs:
-  test:
-    name: Build and Test
+  lint:
+    name: Lint and Format
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libshumate-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Check Formatting
+        run: cargo fmt -- --check
+      - name: Run Linter
+        run: cargo clippy -- -D warnings
 
-    - name: Install System Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          libgtk-4-dev \
-          libadwaita-1-dev \
-          libshumate-dev \
-          xvfb \
-          at-spi2-core \
-          dbus-x11 \
-          python3-gi \
-          python3-pyatspi \
-          scrot \
-          python3-pil
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libshumate-dev xvfb dbus-x11
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run Unit Tests
+        run: xvfb-run --auto-servernum dbus-run-session cargo test
 
-    - name: Set up Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-4-dev \
+            libadwaita-1-dev \
+            libshumate-dev \
+            xvfb \
+            at-spi2-core \
+            dbus-x11 \
+            python3-gi \
+            python3-pyatspi \
+            scrot \
+            python3-pil \
+            libatk-bridge2.0-0 \
+            libgl1-mesa-dri \
+            mesa-utils
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build Application
+        run: cargo build
+      - name: Run E2E Tests
+        run: |
+          # Create directory for screenshots
+          mkdir -p tests/screenshots
+          
+          # Run tests under xvfb and dbus-run-session
+          # We use a longer timeout and ensure the a11y bus is active
+          xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" \
+            dbus-run-session python3 tests/e2e_test.py
+      - name: Upload Screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: tests/screenshots/
+          if-no-files-found: ignore
 
-    - name: Rust Cache
-      uses: Swatinem/rust-cache@v2
-
-    - name: Install Tarpaulin
-      run: |
-        if ! command -v cargo-tarpaulin &> /dev/null; then
-          cargo install cargo-tarpaulin
-        fi
-
-    - name: Run Unified Test Suite
-      run: |
-        # Run the unified test runner under xvfb (virtual display) and dbus-run-session
-        # This ensures all accessibility components share the same display and bus.
-        xvfb-run --auto-servernum dbus-run-session bash scripts/run_tests.sh
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libshumate-dev xvfb dbus-x11
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Tarpaulin
+        run: |
+          if ! command -v cargo-tarpaulin &> /dev/null; then
+            cargo install cargo-tarpaulin
+          fi
+      - name: Run Coverage
+        run: xvfb-run --auto-servernum dbus-run-session cargo tarpaulin --out Xml
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

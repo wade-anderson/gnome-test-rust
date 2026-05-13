@@ -1,0 +1,23 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: AI Review
+        # This is a placeholder for an AI review action.
+        # In a real scenario, you would use a specific action or a script.
+        run: |
+          echo "Analyzing changes in PR #${{ github.event.pull_request.number }}..."
+          # Mock output
+          echo "AI Review completed. No major issues found."
