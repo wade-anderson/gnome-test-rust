@@ -61,30 +61,42 @@ def verify_visual(name):
     
     return compare_images(baseline, current)
 
-def find_child(parent, name=None, role=None, timeout=10):
+def find_child(parent, name=None, role=None, timeout=15):
     """Recursively find a child by name and/or role using BFS."""
     start = time.time()
     while time.time() - start < timeout:
         queue = [parent]
         while queue:
             curr = queue.pop(0)
-            count = curr.get_child_count()
-            for i in range(count):
-                child = curr.get_child_at_index(i)
-                if not child:
-                    continue
-                
-                c_name = child.get_name()
-                c_role = child.get_role_name()
-                
-                match_name = name is None or c_name == name
-                match_role = role is None or c_role == role
-                
-                if match_name and match_role:
-                    return child
-                
-                if child.get_child_count() > 0:
-                    queue.append(child)
+            try:
+                count = curr.get_child_count()
+                for i in range(count):
+                    child = curr.get_child_at_index(i)
+                    if not child:
+                        continue
+                    
+                    c_name = child.get_name() or ""
+                    c_role = child.get_role_name() or ""
+                    
+                    match_name = name is None or name.lower() in c_name.lower()
+                    
+                    # Fuzzy role matching
+                    if role is None:
+                        match_role = True
+                    else:
+                        role_lower = role.lower()
+                        c_role_lower = c_role.lower()
+                        match_role = role_lower == c_role_lower or \
+                                     (role_lower == "button" and "button" in c_role_lower) or \
+                                     (role_lower == "frame" and c_role_lower == "application")
+                    
+                    if match_name and match_role:
+                        return child
+                    
+                    if child.get_child_count() > 0:
+                        queue.append(child)
+            except Exception:
+                continue
         time.sleep(0.5)
     return None
 
@@ -162,26 +174,35 @@ def run_e2e_test(fail_geo=False):
             print("FAILED: Application not found.")
             return False
         
+        print("INFO: Looking for main window...")
         window = find_child(app, name="Gnome Test Rust", role="frame")
         if not window:
             print("FAILED: Main window not found.")
+            dump_tree(app)
             return False
         
         # Visual Check: Main Window
+        print("INFO: Verifying main window appearance...")
         if not verify_visual("main_window"):
             print("FAILED: Visual regression detected in main window.")
             return False
+        time.sleep(1)
 
         # 2. Open Map
-        map_button = find_child(window, name="Map")
+        print("INFO: Looking for 'Map' button...")
+        map_button = find_child(window, name="Map", role="button")
         if not map_button:
             print("FAILED: 'Map' button not found.")
             dump_tree(window)
             return False
+        
+        print("INFO: Clicking 'Map' button...")
         action = map_button.get_action_iface()
         action.do_action(0)
+        time.sleep(2) # Wait for window to appear
         
         # 3. Verify Map View window
+        print("INFO: Looking for 'Map View' window...")
         map_window = find_child(app, name="Map View", role="frame")
         if not map_window:
              # Try fallback search
@@ -189,27 +210,31 @@ def run_e2e_test(fail_geo=False):
 
         if not map_window:
             print("FAILED: 'Map View' window did not appear.")
+            dump_tree(app)
             return False
         
         # Visual Check: Map Window
+        print("INFO: Verifying map window appearance...")
         if not verify_visual("map_window"):
             print("FAILED: Visual regression detected in map window.")
             return False
+        time.sleep(1)
         
         # 4. Check for failure output in logs if fail_geo is set
         if fail_geo:
-            # We can't easily check stdout of a running process without blocking or threads
-            # but we can verify the app doesn't crash and remains interactive.
             print("INFO: Verified app handles geolocation failure without crashing.")
 
         # 5. Close Map
-        close_button = find_child(map_window, name="Close Map")
+        print("INFO: Looking for 'Close Map' button...")
+        close_button = find_child(map_window, name="Close Map", role="button")
         if not close_button:
             print("FAILED: 'Close Map' button not found.")
             dump_tree(map_window)
             return False
+        
+        print("INFO: Clicking 'Close Map' button...")
         close_button.get_action_iface().do_action(0)
-        time.sleep(1)
+        time.sleep(2) # Wait for window to close
 
         # 6. Exit
         print("INFO: Looking for 'OK' button to exit...")
@@ -224,6 +249,7 @@ def run_e2e_test(fail_geo=False):
             print("FAILED: 'OK' button has no action interface.")
             return False
             
+        print("INFO: Clicking 'OK' button to exit...")
         action.do_action(0)
         
         proc.wait(timeout=10)

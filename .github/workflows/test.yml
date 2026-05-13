@@ -11,6 +11,8 @@ env:
   # Ensure GTK accessibility is enabled for E2E tests
   GTK_A11Y: atspi
   NO_AT_BRIDGE: 0
+  # Suppress Node.js 20 deprecation warnings
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   lint:
